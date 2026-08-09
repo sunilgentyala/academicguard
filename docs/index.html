@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AcademicGuard: Academic Writing Integrity Toolkit</title>
+<meta name="description" content="Open-source, offline AI-content, plagiarism, grammar, and venue-style checker for IEEE, Elsevier, ACM, IET, and BCS papers.">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-raised: #f7f8fa;
+    --bg-sunken: #eef0f3;
+    --border: #e2e5ea;
+    --text: #1a1f29;
+    --text-dim: #565f6e;
+    --text-faint: #8890a0;
+    --accent: #2857c9;
+    --accent-ink: #ffffff;
+    --accent-soft: #eaf0ff;
+    --pass: #1a7f4e;
+    --pass-bg: #e5f6ed;
+    --warn: #92620a;
+    --warn-bg: #fdf3e0;
+    --fail: #b3261e;
+    --fail-bg: #fbe9e8;
+    --code-bg: #12151c;
+    --code-text: #d9dee8;
+    --code-accent: #7fb0ff;
+    --code-string: #9fd88a;
+    --code-comment: #6b7385;
+    --shadow: 0 1px 2px rgba(20,24,32,.04), 0 8px 24px rgba(20,24,32,.06);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1218;
+      --bg-raised: #171b23;
+      --bg-sunken: #0b0d12;
+      --border: #262b35;
+      --text: #eef1f6;
+      --text-dim: #a7afbe;
+      --text-faint: #6b7181;
+      --accent: #6d94ff;
+      --accent-ink: #0b0d12;
+      --accent-soft: #1b2338;
+      --pass: #5fd996;
+      --pass-bg: #0f2a1c;
+      --warn: #f0b93d;
+      --warn-bg: #2c2308;
+      --fail: #ff8b85;
+      --fail-bg: #2c1310;
+      --code-bg: #090b10;
+      --code-text: #d9dee8;
+      --code-accent: #8ab4ff;
+      --code-string: #9fd88a;
+      --code-comment: #626a7c;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.4);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+  a { color: var(--accent); }
+
+  code, pre, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.05rem; color: var(--text); text-decoration: none; }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #7c5cff);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 15px; font-weight: 800;
+    flex: none;
+  }
+  .navlinks { display: flex; gap: 22px; align-items: center; }
+  .navlinks a { color: var(--text-dim); text-decoration: none; font-size: .92rem; font-weight: 500; }
+  .navlinks a:hover { color: var(--text); }
+  .navlinks a.cta {
+    color: var(--accent-ink); background: var(--accent); padding: 8px 14px; border-radius: 8px;
+  }
+  .navlinks a.cta:hover { opacity: .92; }
+
+  /* ---------- hero ---------- */
+  header.hero { padding: 76px 0 56px; text-align: center; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: .8rem; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid var(--border);
+    padding: 5px 12px; border-radius: 999px; margin-bottom: 22px;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--pass); }
+  h1 { font-size: clamp(2.1rem, 4.6vw, 3.4rem); line-height: 1.1; margin: 0 0 20px; letter-spacing: -0.02em; }
+  h1 .accent { color: var(--accent); }
+  .lede { font-size: clamp(1rem, 1.6vw, 1.2rem); color: var(--text-dim); max-width: 640px; margin: 0 auto 34px; }
+  .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 46px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: .95rem;
+    text-decoration: none; border: 1px solid transparent; transition: transform .12s ease, opacity .12s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { opacity: .92; }
+  .btn-secondary { background: var(--bg-raised); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--bg-sunken); }
+
+  .badgerow { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .pill {
+    font-size: .78rem; font-weight: 600; color: var(--text-dim);
+    background: var(--bg-raised); border: 1px solid var(--border);
+    padding: 5px 11px; border-radius: 999px;
+  }
+
+  /* ---------- terminal ---------- */
+  .terminal {
+    background: var(--code-bg); color: var(--code-text);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    max-width: 760px; margin: 0 auto; text-align: left; overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .terminal-bar { display: flex; gap: 6px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .terminal-bar span { width: 10px; height: 10px; border-radius: 50%; background: #4b5160; }
+  .terminal pre { margin: 0; padding: 20px 22px 22px; font-size: .84rem; overflow-x: auto; }
+  .terminal .c1 { color: var(--code-comment); }
+  .terminal .c2 { color: var(--code-accent); }
+  .terminal .c3 { color: var(--code-string); }
+  .terminal .pass { color: var(--pass); font-weight: 600; }
+  .terminal .warn { color: var(--warn); font-weight: 600; }
+
+  /* ---------- section shell ---------- */
+  section { padding: 64px 0; }
+  section + section { border-top: 1px solid var(--border); }
+  .section-head { max-width: 620px; margin: 0 auto 40px; text-align: center; }
+  .section-head h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); margin: 0 0 12px; letter-spacing: -0.01em; }
+  .section-head p { color: var(--text-dim); margin: 0; }
+
+  /* ---------- feature grid ---------- */
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid4 { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .grid4 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .card .icon {
+    width: 38px; height: 38px; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 700;
+  }
+  .card h3 { margin: 0; font-size: 1.02rem; }
+  .card p { margin: 0; color: var(--text-dim); font-size: .89rem; }
+  .card .tag { font-size: .74rem; color: var(--text-faint); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* ---------- venues ---------- */
+  .venues { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .venue-chip {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; min-width: 150px;
+  }
+  .venue-chip b { display: block; font-size: .95rem; }
+  .venue-chip span { display: block; font-size: .78rem; color: var(--text-faint); }
+
+  /* ---------- privacy strip ---------- */
+  .privacy {
+    background: var(--pass-bg); border: 1px solid color-mix(in srgb, var(--pass) 35%, var(--border));
+    border-radius: var(--radius); padding: 24px 28px; display: flex; gap: 18px; align-items: flex-start;
+  }
+  .privacy .icon { color: var(--pass); font-size: 1.4rem; line-height: 1; flex: none; }
+  .privacy h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .privacy p { margin: 0; color: var(--text-dim); font-size: .92rem; }
+  .privacy code { background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 6px; font-size: .85em; }
+
+  /* ---------- quickstart ---------- */
+  .code-block {
+    background: var(--code-bg); color: var(--code-text); border-radius: 12px;
+    border: 1px solid var(--border); padding: 18px 20px; font-size: .85rem; overflow-x: auto;
+  }
+  .code-block .c1 { color: var(--code-comment); }
+  .code-block .c2 { color: var(--code-accent); }
+
+  /* ---------- table ---------- */
+  table.compare { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  table.compare th, table.compare td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: center; }
+  table.compare th { color: var(--text-faint); font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; }
+  table.compare td:first-child, table.compare th:first-child { text-align: left; color: var(--text); font-weight: 600; }
+  table.compare .yes { color: var(--pass); font-weight: 700; }
+  table.compare .no { color: var(--text-faint); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; background: var(--bg-raised); }
+
+  /* ---------- footer ---------- */
+  footer { padding: 40px 0 60px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: space-between; }
+  footer .flinks { display: flex; gap: 18px; flex-wrap: wrap; }
+  footer a { color: var(--text-dim); text-decoration: none; font-size: .88rem; }
+  footer a:hover { color: var(--text); }
+  footer .fine { color: var(--text-faint); font-size: .82rem; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <span class="brand-mark">AG</span>
+      AcademicGuard
+    </a>
+    <div class="navlinks">
+      <a href="#features">Features</a>
+      <a href="#venues">Venues</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="https://github.com/sunilgentyala/academicguard/blob/main/HOWTO.md">Docs</a>
+      <a class="cta" href="https://github.com/sunilgentyala/academicguard">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="eyebrow"><span class="dot"></span> v1.0.0 · MIT licensed · zero API keys</span>
+    <h1>Catch what your reviewer<br>would catch, <span class="accent">before they do.</span></h1>
+    <p class="lede">
+      AcademicGuard checks a paper for AI-flagged phrasing, plagiarism, grammar and
+      academic register, and venue formatting (IEEE, Elsevier, ACM, IET, BCS),
+      entirely offline, with a single command.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#quickstart">Get Started</a>
+      <a class="btn btn-secondary" href="https://github.com/sunilgentyala/academicguard/blob/main/HOWTO.md">Read the Docs</a>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal-bar"><span></span><span></span><span></span></div>
+      <pre><span class="c1"># one command, no account, no API key</span>
+<span class="c2">$</span> academicguard analyze paper.pdf --venue ieee
+
+  AI Detector   ████████░░ 84%   <span class="pass">PASS</span>   AI probability 9%
+  Plagiarism    █████████░ 92%   <span class="pass">PASS</span>   Low similarity (3%)
+  Grammar       ███████░░░ 71%   <span class="warn">WARN</span>   4 errors, 11 warnings
+  IEEE Style    ████████░░ 85%   <span class="pass">PASS</span>   0 errors, 2 warnings
+
+  <span class="c1">Overall:</span> <span class="warn">WARN</span> (83%)</pre>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Four checks, one report</h2>
+      <p>Each module scores independently and rolls up into one overall PASS / WARN / FAIL, with exit codes your CI can gate on.</p>
+    </div>
+    <div class="grid4">
+      <div class="card">
+        <div class="icon">AI</div>
+        <span class="tag">9-signal ensemble</span>
+        <h3>AI content signal</h3>
+        <p>GLTR token rank, perplexity, burstiness, Zipf deviation, Yule's K, hapax rate, n-gram entropy, stylometrics, and semantic coherence, combined into one score.</p>
+      </div>
+      <div class="card">
+        <div class="icon">⧉</div>
+        <span class="tag">4 algorithms</span>
+        <h3>Plagiarism &amp; self-plagiarism</h3>
+        <p>Winnowing (MOSS-style fingerprinting), MinHash/LSH, and TF-IDF sentence similarity against your own corpus, plus a free CrossRef title lookup.</p>
+      </div>
+      <div class="card">
+        <div class="icon">Aa</div>
+        <span class="tag">register + readability</span>
+        <h3>Grammar &amp; academic English</h3>
+        <p>LanguageTool grammar/spelling, contraction and colloquialism detection, wordiness and hedging checks, Flesch-Kincaid readability targets.</p>
+      </div>
+      <div class="card">
+        <div class="icon">§</div>
+        <span class="tag">rule-based</span>
+        <h3>Venue formatting</h3>
+        <p>Abstract/keyword length, citation style, required sections, British vs. American spelling, and dozens more rules per venue.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="venues">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>One tool, five venues</h2>
+      <p>Instead of five submission checklists open in five tabs.</p>
+    </div>
+    <div class="venues">
+      <div class="venue-chip"><b>IEEE</b><span>Transactions · Access · Conference</span></div>
+      <div class="venue-chip"><b>Elsevier</b><span>ScienceDirect journals</span></div>
+      <div class="venue-chip"><b>ACM</b><span>Digital Library · SIG conferences</span></div>
+      <div class="venue-chip"><b>IET</b><span>British English conventions</span></div>
+      <div class="venue-chip"><b>BCS</b><span>The Computer Journal</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="privacy">
+      <div class="icon">🔒</div>
+      <div>
+        <h3>Private by default</h3>
+        <p>
+          Every check above runs locally, so your unpublished paper never leaves your
+          machine. The only network call anywhere in the tool is an optional, keyless
+          CrossRef title lookup. AcademicGuard does not integrate Turnitin,
+          iThenticate, Copyscape, ZeroGPT, or GPTZero; run those separately for a
+          final institutional check. See <code>academicguard services</code> for exactly
+          what's active on your machine.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Quick start</h2>
+      <p>CLI for interactive use, Python API for scripts and CI.</p>
+    </div>
+    <div class="grid4" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div>
+        <p style="font-weight:600; margin: 0 0 10px; font-size:.85rem; color: var(--text-faint); text-transform:uppercase; letter-spacing:.03em;">Install &amp; run</p>
+        <div class="code-block"><pre style="margin:0"><span class="c1"># pip install</span>
+<span class="c2">$</span> pip install academicguard
+<span class="c2">$</span> python -m spacy download en_core_web_sm
+
+<span class="c1"># analyze + save an HTML report</span>
+<span class="c2">$</span> academicguard analyze paper.pdf \
+    --venue ieee --html report.html</pre></div>
+      </div>
+      <div>
+        <p style="font-weight:600; margin: 0 0 10px; font-size:.85rem; color: var(--text-faint); text-transform:uppercase; letter-spacing:.03em;">Python API</p>
+        <div class="code-block"><pre style="margin:0"><span class="c1">import</span> academicguard.api <span class="c1">as</span> ag
+
+report = ag.analyze(
+    <span class="c2">"paper.pdf"</span>, venue=<span class="c2">"ieee"</span>
+)
+print(report.overall_label,
+      report.overall_score)
+report.save_html(<span class="c2">"report.html"</span>)</pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <h2>How it compares</h2>
+      <p>AcademicGuard complements commercial tools: it's the free, offline pass you run before submission.</p>
+    </div>
+    <div class="table-wrap">
+      <table class="compare">
+        <thead>
+          <tr><th>Feature</th><th>AcademicGuard</th><th>Turnitin</th><th>Grammarly</th><th>GPTZero</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>AI detection</td><td class="yes">Yes (local)</td><td class="no">–</td><td class="no">–</td><td class="yes">Yes</td></tr>
+          <tr><td>Local-corpus plagiarism</td><td class="yes">Yes</td><td class="no">–</td><td class="no">–</td><td class="no">–</td></tr>
+          <tr><td>Grammar check</td><td class="yes">Yes</td><td class="no">–</td><td class="yes">Yes</td><td class="no">–</td></tr>
+          <tr><td>IEEE / Elsevier / ACM / IET / BCS style</td><td class="yes">Yes</td><td class="no">–</td><td class="no">–</td><td class="no">–</td></tr>
+          <tr><td>Works fully offline</td><td class="yes">Yes</td><td class="no">–</td><td class="no">–</td><td class="no">–</td></tr>
+          <tr><td>Free &amp; open source</td><td class="yes">Yes</td><td class="no">–</td><td class="no">Partial</td><td class="no">Partial</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="fine">MIT License © 2026 AcademicGuard Contributors</span>
+    <div class="flinks">
+      <a href="https://github.com/sunilgentyala/academicguard">GitHub</a>
+      <a href="https://github.com/sunilgentyala/academicguard/blob/main/HOWTO.md">Documentation</a>
+      <a href="https://github.com/sunilgentyala/academicguard/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/sunilgentyala/academicguard/issues">Issues</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
