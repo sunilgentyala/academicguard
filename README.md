@@ -44,7 +44,7 @@ academicguard analyze paper.pdf --venue ieee --html report.html
 ```
 
 ```
-AcademicGuard v1.0.0
+AcademicGuard v1.0.1
 File: paper.pdf  |  Venue: IEEE
 
 ┌──────────────┬────────────────────┬────────┬─────────────────────────────┐

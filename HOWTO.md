@@ -1,7 +1,7 @@
 
 # AcademicGuard -- How-To Reference Guide
 
-**Version 1.0.0 | Open Source | MIT License**
+**Version 1.0.1 | Open Source | MIT License**
 
 AcademicGuard is a fully offline-capable, open-source toolkit for academic writing
 integrity checking. It combines AI content detection, plagiarism analysis, English
@@ -999,7 +999,7 @@ If you use AcademicGuard in your research, please cite:
   title   = {AcademicGuard: Open-Source Academic Writing Integrity Toolkit},
   year    = {2026},
   url     = {https://github.com/sunilgentyala/academicguard},
-  version = {1.0.0},
+  version = {1.0.1},
   license = {MIT}
 }
 ```
