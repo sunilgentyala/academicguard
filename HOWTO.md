@@ -24,7 +24,7 @@ grammar/register checking, and venue-specific style enforcement in a single unif
    - [ACM](#acm)
    - [IET](#iet)
    - [BCS](#bcs)
-9. [External Service Integrations](#9-external-service-integrations)
+9. [Local Detection Components](#9-local-detection-components)
 10. [Report Formats](#10-report-formats)
 11. [Environment Variables](#11-environment-variables)
 12. [Supported File Formats](#12-supported-file-formats)
@@ -49,7 +49,7 @@ pip install academicguard
 
 ### Install from Source
 ```bash
-git clone https://github.com/academicguard/academicguard.git
+git clone https://github.com/sunilgentyala/academicguard.git
 cd academicguard
 pip install -e ".[dev]"
 ```
@@ -59,20 +59,26 @@ pip install -e ".[dev]"
 python -m spacy download en_core_web_sm
 ```
 
-### Optional: Install LanguageTool locally (recommended for privacy)
+### LanguageTool (grammar checking)
+
+By default, `language-tool-python` downloads and runs a local Java server the
+first time you run a grammar check (requires JRE 17+). If you'd rather point
+at a LanguageTool server you already run yourself (e.g. via Docker), do it
+through the Python API:
+
+```python
+from academicguard.detectors.grammar import GrammarChecker
+
+gc = GrammarChecker(language="en-US", lt_remote_url="http://localhost:8010")
+```
+
 ```bash
-# Docker (recommended)
+# Run your own LanguageTool server (optional)
 docker run -d -p 8010:8010 silviof/docker-languagetool
-export LANGUAGETOOL_URL="http://localhost:8010"
-
-# Or via Java (requires JRE 17+)
-# Download from: https://languagetool.org/download/
 ```
 
-### Optional: PDF export support
-```bash
-pip install "academicguard[pdf-export]"
-```
+There is no CLI flag or environment variable for this yet -- it's a good
+first contribution if you'd like to add one (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ---
 
@@ -279,39 +285,45 @@ print(result.label, result.overall_probability)
 
 ### How It Works
 
-AcademicGuard uses a four-signal ensemble for AI detection -- no external API required:
+AcademicGuard uses a nine-signal ensemble for AI detection -- no external API required:
 
 | Signal | Weight | What It Measures |
 |--------|--------|-----------------|
-| **Perplexity** | 35% | GPT-2 surprise at each token. AI text is more predictable (lower perplexity). |
-| **Burstiness** | 25% | Coefficient of variation in sentence lengths. Humans are "bursty"; AI is uniform. |
-| **Repetition** | 25% | Density of known AI-generated filler phrases ("furthermore", "delve", "leveraging", etc.). |
-| **Vocabulary richness** | 15% | Type-token ratio and hapax legomena rate. AI text is lexically narrower. |
+| **GLTR Token Rank** | 22% | Rank of each token in GPT-2's probability distribution (Gehrmann et al., 2019). AI text concentrates in the top-10 ranks. |
+| **Perplexity** | 18% | GPT-2 surprise at each token. AI text is more predictable (lower perplexity). |
+| **Burstiness** | 12% | Coefficient of variation in sentence lengths. Humans are "bursty"; AI is uniform. |
+| **Zipf Deviation** | 10% | Goodness-of-fit to Zipf's law word-frequency curve. AI text deviates more. |
+| **Yule's K** | 10% | Vocabulary richness (Tweedie & Baayen, 1998). Higher K = narrower, more AI-like lexicon. |
+| **Hapax Rate** | 8% | Share of words used exactly once. Lower rate = more repetitive = more AI-like. |
+| **N-gram Entropy** | 8% | Shannon entropy of word/character n-grams. AI text has lower entropy. |
+| **Stylometric Profile** | 7% | AI filler-phrase density, function-word overuse, sentence-opener and punctuation diversity. |
+| **Semantic Coherence** | 5% | TF-IDF cosine similarity between adjacent sentences. AI text is unusually coherent. |
+
+GPT-2 based signals (GLTR, Perplexity) fall back to pure-Python heuristics
+automatically if `transformers`/`torch` are not installed or `--no-transformer`
+is passed -- the other seven signals always run.
 
 ### Interpretation
 
 | Score | Label | Meaning |
 |-------|-------|---------|
-| AI probability >= 75% | `LIKELY_AI` | High confidence of AI generation |
-| 45-75% | `UNCERTAIN` | Mixed signals; manual review recommended |
+| AI probability >= 70% | `LIKELY_AI` | High confidence of AI generation |
+| 45-70% | `UNCERTAIN` | Mixed signals; manual review recommended |
 | < 45% | `LIKELY_HUMAN` | Predominantly human-authored |
 
 ### Configuration
 
 ```bash
-# Use GPT-2 (best accuracy, ~500MB download)
+# Use GPT-2 (best accuracy, ~500MB download on first run)
 academicguard ai paper.pdf
 
 # Heuristic mode (no download, faster, less accurate)
 academicguard ai paper.pdf --no-transformer
-
-# Enable ZeroGPT as second opinion
-export ZEROGPT_API_KEY="your_key"
-academicguard analyze paper.pdf  # uses ZeroGPT automatically if key is set
-
-# Enable GPTZero as second opinion
-export GPTZERO_API_KEY="your_key"
 ```
+
+> AcademicGuard does not call ZeroGPT, GPTZero, or any other third-party AI
+> detection API. If you want a second opinion, run those tools separately and
+> compare -- see [Section 15](#15-industry-tool-comparison).
 
 ### Known AI Phrase Database
 
@@ -335,10 +347,18 @@ The tool flags these common AI-generated patterns:
 
 ### Detection Layers
 
-1. **Local corpus (MinHash/LSH)** -- compare against your own document collection
-2. **CrossRef metadata** -- detect duplicate titles in academic databases (free, no API key)
-3. **Turnitin iThenticate** -- institutional-grade similarity detection (requires license)
-4. **Copyscape Premium** -- web-based duplicate detection (pay-per-search)
+1. **Winnowing (MOSS-style fingerprinting)** -- exact/near-exact match against your local corpus
+2. **MinHash / LSH** -- fast approximate matching, scales to large corpora
+3. **TF-IDF sentence similarity** -- catches paraphrased overlap the two methods above miss
+4. **CrossRef metadata** -- detects duplicate/self-plagiarized titles in the CrossRef academic database (free, no API key)
+
+All four run locally and automatically -- there is nothing to configure. Layers 1-3
+only activate when you pass `--corpus`; CrossRef only activates when a title was
+detected in the document.
+
+> AcademicGuard does not integrate Turnitin, iThenticate, or Copyscape. For a final
+> institutional plagiarism check before submission, run those tools separately --
+> see [Section 15](#15-industry-tool-comparison) for a suggested workflow.
 
 ### Local Corpus Setup
 
@@ -356,17 +376,6 @@ Similarity thresholds:
 - `>= 80%` -- Error: clear duplication, citation required
 - `40-80%` -- Warning: substantial overlap, review needed
 - `< 40%` -- Info: minor overlap, likely acceptable
-
-### External API Configuration
-
-```bash
-# Turnitin iThenticate
-export TURNITIN_API_KEY="your_api_key"
-
-# Copyscape
-export COPYSCAPE_USER="your_username"
-export COPYSCAPE_KEY="your_api_key"
-```
 
 ### Self-Plagiarism Check
 
@@ -628,38 +637,52 @@ Find your CCS concepts at: https://dl.acm.org/ccs
 
 ---
 
-## 9. External Service Integrations
+## 9. Local Detection Components
 
 ### Overview
 
-AcademicGuard is fully functional without any external APIs. External services
-provide enhanced coverage as optional additions.
+AcademicGuard makes **zero** external API calls and needs **no API keys**. Every
+detector is either pure Python or a locally-run model. A couple of components
+degrade gracefully to a pure-Python heuristic if their optional dependency
+isn't installed; the one networked call in the whole tool is the free,
+keyless CrossRef lookup used for duplicate-title detection.
 
-| Service | Function | Pricing | API Key Required |
-|---------|----------|---------|-----------------|
-| CrossRef | Title/DOI deduplication | Free | No |
-| LanguageTool | Grammar (offline) | Free | No |
-| LanguageTool Premium | Enhanced grammar | Paid | Yes (URL) |
-| ZeroGPT | Third-party AI detection | Free tier | Yes |
-| GPTZero | Third-party AI detection | Free tier | Yes |
-| Turnitin iThenticate | Institutional plagiarism | Institutional | Yes |
-| Copyscape | Web plagiarism | Pay-per-search | Yes |
+| Component | Requires | Falls back to |
+|-----------|----------|----------------|
+| GLTR + Perplexity (AI detection) | `transformers`, `torch` (~500MB, downloaded once) | Pure-Python heuristic (`--no-transformer`) |
+| Burstiness, Zipf, Yule-K, Hapax, N-gram, Stylometrics, Coherence | nothing | always on |
+| Winnowing fingerprinting (plagiarism) | nothing | always on |
+| MinHash / LSH (plagiarism) | `datasketch` | Plain set-Jaccard similarity |
+| TF-IDF sentence similarity (plagiarism) | nothing | always on |
+| CrossRef metadata search | `httpx`, internet access | Skipped if unreachable |
+| LanguageTool (grammar) | `language-tool-python` (downloads a local Java server on first use) | Skipped; regex-based register checks still run |
+| spaCy sentence analysis | `en_core_web_sm` model | Skipped; other grammar checks still run |
 
-### Checking Service Status
+### Checking What's Installed
 
 ```bash
 academicguard services
 ```
 
-Output example:
 ```
- Service              Status     Auth                  Note
- Turnitin iThenticate NOT SET    Bearer token          Requires institutional license
- Copyscape Premium    NOT SET    Username + API key    Pay-per-search pricing
- ZeroGPT AI Detector  ENABLED    API key               Free tier available
- CrossRef Metadata    ENABLED    None (free open API)  Always available
- LanguageTool (local) ENABLED    None                  Downloads on first use
+ Component                                             Status          Note
+ GPT-2 (AI Detection -- GLTR + Perplexity)              AVAILABLE       transformers 4.x, torch 2.x
+ Heuristic AI Signals (Burstiness, Zipf, Yule-K, ...)   AVAILABLE       Always available -- pure Python, no dependencies
+ Winnowing Fingerprinter (MOSS-style plagiarism)        AVAILABLE       Always available -- pure Python implementation
+ MinHash / LSH (fast approximate plagiarism)            AVAILABLE       datasketch 1.x
+ TF-IDF Cosine Similarity (paraphrase plagiarism)       AVAILABLE       Always available -- pure Python implementation
+ CrossRef Metadata Search (free, open)                  AVAILABLE       Free REST API -- no API key required
+ LanguageTool (grammar checker)                         AVAILABLE       Local Java server -- downloads on first use
+ spaCy en_core_web_sm (sentence analysis)                NOT INSTALLED   Run: python -m spacy download en_core_web_sm
 ```
+
+Run `academicguard setup-env` for copy-pasteable install commands for anything
+shown as `NOT INSTALLED`.
+
+> **Not included:** Turnitin/iThenticate, Copyscape, ZeroGPT, and GPTZero are
+> commercial services AcademicGuard does not integrate with. If your venue
+> requires one of them, run it separately as a final check -- see
+> [Section 15](#15-industry-tool-comparison) for a suggested workflow.
 
 ---
 
@@ -723,22 +746,19 @@ academicguard analyze paper.pdf --venue ieee 2>&1 | tee analysis.txt
 
 ## 11. Environment Variables
 
+AcademicGuard reads no API-key environment variables -- it doesn't need any.
+The one variable worth knowing about is standard HuggingFace configuration,
+honored automatically by the `transformers` library whenever the GPT-2-based
+AI detection signals are used:
+
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `TURNITIN_API_KEY` | Turnitin iThenticate API key | `ith_key_xxx...` |
-| `COPYSCAPE_USER` | Copyscape username | `myusername` |
-| `COPYSCAPE_KEY` | Copyscape API key | `key_xxx...` |
-| `ZEROGPT_API_KEY` | ZeroGPT API key | `zgpt_xxx...` |
-| `GPTZERO_API_KEY` | GPTZero API key | `gptz_xxx...` |
-| `LANGUAGETOOL_URL` | LanguageTool server URL | `http://localhost:8010` |
-| `TRANSFORMERS_CACHE` | HuggingFace model cache directory | `~/.cache/hf` |
-| `ACADEMICGUARD_LOG` | Log level | `DEBUG`, `INFO`, `WARNING` |
+| `TRANSFORMERS_CACHE` | Where the ~500MB GPT-2 model is cached after first download | `~/.cache/huggingface` |
 
-Add to `~/.bashrc` or `~/.zshrc`:
-```bash
-export TURNITIN_API_KEY="your_key_here"
-export ZEROGPT_API_KEY="your_key_here"
-```
+If you want a self-hosted LanguageTool server for grammar checking, point at it
+directly with `--lang` and the `lt_remote_url` parameter of `GrammarChecker`
+in the Python API (see [Section 4](#4-python-api)); there is currently no CLI
+flag or environment variable for this.
 
 ---
 
@@ -960,7 +980,7 @@ AcademicGuard is designed to complement -- not replace -- commercial tools.
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
-git clone https://github.com/academicguard/academicguard.git
+git clone https://github.com/sunilgentyala/academicguard.git
 cd academicguard
 pip install -e ".[dev]"
 pytest tests/
@@ -978,7 +998,7 @@ If you use AcademicGuard in your research, please cite:
 @software{academicguard2026,
   title   = {AcademicGuard: Open-Source Academic Writing Integrity Toolkit},
   year    = {2026},
-  url     = {https://github.com/academicguard/academicguard},
+  url     = {https://github.com/sunilgentyala/academicguard},
   version = {1.0.0},
   license = {MIT}
 }
