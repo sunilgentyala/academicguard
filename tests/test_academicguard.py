@@ -4,6 +4,7 @@ import pytest
 from academicguard.core.document import Document
 from academicguard.detectors.ai_detector import AIDetector
 from academicguard.detectors.grammar import GrammarChecker, flesch_kincaid_grade
+from academicguard.detectors.plagiarism import PlagiarismDetector
 from academicguard.style import get_style_checker, VENUE_REGISTRY
 
 SAMPLE_TEXT = """

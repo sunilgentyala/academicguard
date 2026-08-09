@@ -32,7 +32,7 @@ class BCSStyleChecker(BaseStyleChecker):
         # Abstract must be informative (not just a description of intent)
         findings.extend(self._check_abstract_quality(doc))
 
-        # Keywords: 4-6
+        # Keywords: 4-8
         findings.extend(self._check_keywords(doc, 4, 8, "BCS-KW-001"))
 
         # British English

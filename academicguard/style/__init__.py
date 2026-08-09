@@ -15,6 +15,23 @@ VENUE_REGISTRY: dict[str, type[BaseStyleChecker]] = {
     "bcs": BCSStyleChecker,
 }
 
+# Default LanguageTool language per venue -- IET and BCS/Oxford require
+# British English; the others follow American English convention.
+VENUE_LANGUAGE: dict[str, str] = {
+    "ieee": "en-US",
+    "elsevier": "en-US",
+    "acm": "en-US",
+    "iet": "en-GB",
+    "bcs": "en-GB",
+}
+
+
+def get_venue_language(venue: str) -> str:
+    """Return the default grammar-check language for a venue key ('en-US'/'en-GB')."""
+    key = venue.lower().strip()
+    key = VENUE_ALIASES.get(key, key)
+    return VENUE_LANGUAGE.get(key, "en-US")
+
 VENUE_ALIASES: dict[str, str] = {
     "ieee transactions": "ieee",
     "ieee access": "ieee",
@@ -51,5 +68,7 @@ __all__ = [
     "IETStyleChecker",
     "BCSStyleChecker",
     "VENUE_REGISTRY",
+    "VENUE_LANGUAGE",
     "get_style_checker",
+    "get_venue_language",
 ]

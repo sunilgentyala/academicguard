@@ -45,7 +45,8 @@ _AMERICAN_TO_BRITISH: dict[str, str] = {
     "colored": "coloured",
     "neighbor": "neighbour",
     "neighbors": "neighbours",
-    "behaviour": "behaviour",  # already British (keep)
+    "behavior": "behaviour",
+    "behaviors": "behaviours",
     "center": "centre",
     "centers": "centres",
     "fiber": "fibre",
@@ -53,11 +54,14 @@ _AMERICAN_TO_BRITISH: dict[str, str] = {
     "meters": "metres",
     "defense": "defence",
     "license": "licence",
-    "practice": "practise",  # as verb
     "catalog": "catalogue",
     "dialog": "dialogue",
     "program": "programme",   # in British English (except computer program)
 }
+# Words intentionally excluded from the map above:
+#   "practice" -- British keeps "practice" as a noun (only the verb is
+#   "practise"); a blanket regex cannot tell them apart, so flagging it
+#   produces false positives on common phrases like "best practice".
 
 
 class IETStyleChecker(BaseStyleChecker):

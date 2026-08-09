@@ -10,7 +10,7 @@ from academicguard.core.report import AnalysisReport
 from academicguard.detectors.ai_detector import AIDetector
 from academicguard.detectors.plagiarism import PlagiarismDetector
 from academicguard.detectors.grammar import GrammarChecker
-from academicguard.style import get_style_checker
+from academicguard.style import get_style_checker, get_venue_language
 
 
 def analyze(
@@ -22,6 +22,7 @@ def analyze(
     run_plagiarism: bool = True,
     run_grammar: bool = True,
     run_style: bool = True,
+    is_text: bool = False,
 ) -> AnalysisReport:
     """
     Full analysis pipeline.
@@ -38,6 +39,10 @@ def analyze(
         If True, load GPT-2 for perplexity-based AI detection (slower but better).
     run_* : bool
         Toggle individual modules.
+    is_text : bool
+        Set True to force `source` to be treated as literal text even if it
+        happens to match the path of a file that exists on disk. Prefer
+        calling `analyze_text()` instead of setting this directly.
 
     Returns
     -------
@@ -51,8 +56,11 @@ def analyze(
     >>> print(report.overall_label, report.overall_score)
     >>> report.save_html("report.html")
     """
-    # Load document
-    if isinstance(source, Path) or (isinstance(source, str) and Path(source).exists()):
+    # Load document. A str source is only treated as a file path if it looks
+    # like one on disk -- callers going through analyze_text() always pass
+    # is_text=True so a pasted paragraph that happens to match a real
+    # filename (e.g. "LICENSE" or "Results") is never read off disk.
+    if not is_text and (isinstance(source, Path) or (isinstance(source, str) and Path(source).exists())):
         doc = Document.from_file(source)
     else:
         doc = Document.from_string(str(source))
@@ -71,7 +79,7 @@ def analyze(
         report.modules.append(pd.analyze(doc))
 
     if run_grammar:
-        gc = GrammarChecker()
+        gc = GrammarChecker(language=get_venue_language(venue))
         report.modules.append(gc.analyze(doc))
         gc.close()
 
@@ -88,5 +96,5 @@ def analyze_text(
     venue: str = "ieee",
     **kwargs,
 ) -> AnalysisReport:
-    """Analyze a raw text string directly."""
-    return analyze(text, venue=venue, **kwargs)
+    """Analyze a raw text string directly (never touches the filesystem)."""
+    return analyze(text, venue=venue, is_text=True, **kwargs)

@@ -230,8 +230,9 @@ class TFIDFSimilarityChecker:
         best_sim = 0.0
         best_match = ""
         for s1 in sents1:
-            if len(s1.split()) < 8:
-                continue
+            # _split_sentences() already drops sentences under 5 words; no
+            # extra length filter here, or short-but-identical sentences
+            # (common in academic writing) score a false 0% similarity.
             v1 = self._tfidf(s1, vocab, all_sents)
             for s2, v2 in zip(sents2, vecs2):
                 sim = self._cosine(v1, v2)

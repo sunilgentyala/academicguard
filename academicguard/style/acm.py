@@ -27,7 +27,7 @@ class ACMStyleChecker(BaseStyleChecker):
     def _check(self, doc: Document) -> list[Finding]:
         findings: list[Finding] = []
 
-        # Abstract: 150-250 words
+        # Abstract: 100-250 words
         f = self._check_abstract_length(doc, 100, 250, "ACM-ABS-001")
         if f:
             findings.append(f)

@@ -8,6 +8,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+# Dash-like separators seen after "Abstract"/"Keywords" headers: non-breaking
+# hyphen, figure dash, en dash, em dash, horizontal bar, plus a plain ASCII
+# hyphen. The ASCII hyphen is listed LAST in each character class below --
+# inside [...] a "-" between two other characters is a range operator, so it
+# must sit at the edge of the class to be treated as a literal character.
+_DASHES = "‐‑‒–—―-"
+
+# Matches an "Abstract" header at the start of a line, with the header word
+# optionally followed by ":", a dash, or "--", and captures anything left on
+# the same line (group 1) -- e.g. "Abstract-- We present..." or "Abstract:"
+# on its own line.
+_ABSTRACT_HEADER_RE = re.compile(rf"^abstract\s*[:{_DASHES}]*\s*(.*)$", re.I)
+
+# Same idea for "Keywords" / "Index Terms" headers; group 2 captures the
+# inline keyword list, if any.
+_KEYWORDS_HEADER_RE = re.compile(rf"^(keywords?|index terms?)\s*[:{_DASHES}]*\s*(.*)$", re.I)
+
 
 @dataclass
 class DocumentSection:
@@ -113,23 +130,33 @@ class Document:
             stripped = line.strip()
             upper = stripped.upper()
 
+            # Abstract -- checked before the title heuristic below so a line
+            # like "Abstract-- This paper presents..." (the common IEEE
+            # inline convention, where the header and first sentence share a
+            # line) is never mistaken for the paper's title. The header word
+            # may be followed by ":", "-", "--", or an em/en dash.
+            if not self.abstract and not in_abstract:
+                m = _ABSTRACT_HEADER_RE.match(stripped)
+                if m:
+                    in_abstract = True
+                    if m.group(1):
+                        abstract_lines.append(m.group(1))
+                    continue
+
+            if in_abstract:
+                m = _KEYWORDS_HEADER_RE.match(stripped)
+                if m:
+                    self.abstract = " ".join(abstract_lines).strip()
+                    in_abstract = False
+                    if m.group(2):
+                        self.keywords = [k.strip() for k in re.split(r"[;,]", m.group(2)) if k.strip()]
+                else:
+                    abstract_lines.append(stripped)
+                continue
+
             # Title heuristic: first non-empty short line
             if not self.title and stripped and len(stripped) < 200:
                 self.title = stripped
-                continue
-
-            # Abstract
-            if re.match(r"^abstract[:\s\-]*$", stripped, re.I):
-                in_abstract = True
-                continue
-            if in_abstract:
-                if re.match(r"^(keywords?|index terms?)[:\s]", stripped, re.I):
-                    self.abstract = " ".join(abstract_lines).strip()
-                    in_abstract = False
-                    kw_text = re.sub(r"^(keywords?|index terms?)[:\s\-]*", "", stripped, flags=re.I)
-                    self.keywords = [k.strip() for k in re.split(r"[;,]", kw_text) if k.strip()]
-                else:
-                    abstract_lines.append(stripped)
                 continue
 
             # References section

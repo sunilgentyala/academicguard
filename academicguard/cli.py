@@ -20,7 +20,7 @@ from academicguard.core.report import AnalysisReport
 from academicguard.detectors.ai_detector import AIDetector
 from academicguard.detectors.plagiarism import PlagiarismDetector
 from academicguard.detectors.grammar import GrammarChecker
-from academicguard.style import VENUE_REGISTRY, get_style_checker
+from academicguard.style import VENUE_REGISTRY, get_style_checker, get_venue_language
 from academicguard.integrations.external import check_available_services, ServiceStatus, ENV_SETUP_GUIDE
 
 app = typer.Typer(
@@ -115,7 +115,7 @@ def analyze(
         # Grammar
         if not skip_grammar:
             t = prog.add_task("[yellow]Grammar Check...", total=None)
-            gc = GrammarChecker()
+            gc = GrammarChecker(language=get_venue_language(venue))
             result = gc.analyze(doc)
             report.modules.append(result)
             prog.update(t, description=f"[yellow]Grammar[/yellow]        [{_label_color(result.label)}]{result.label}[/{_label_color(result.label)}] {result.score:.0%}")
