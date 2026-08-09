@@ -5,12 +5,13 @@
 **Catch AI-flagged phrasing, plagiarism, grammar slips, and venue formatting mistakes**
 **before your reviewer does, entirely on your own machine.**
 
+[![Latest release](https://img.shields.io/github/v/release/sunilgentyala/academicguard?label=release)](https://github.com/sunilgentyala/academicguard/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![No API keys required](https://img.shields.io/badge/API%20keys-none%20required-brightgreen.svg)](HOWTO.md#9-local-detection-components)
 [![Venues](https://img.shields.io/badge/venues-IEEE%20%7C%20Elsevier%20%7C%20ACM%20%7C%20IET%20%7C%20BCS-informational.svg)](HOWTO.md#8-venue-style-checkers)
 
-[Quick Start](#quick-start) · [Full Documentation](HOWTO.md) · [Project Site](https://sunilgentyala.github.io/academicguard/) · [Contributing](CONTRIBUTING.md)
+[Quick Start](#quick-start) · [Full Documentation](HOWTO.md) · [Project Site](https://sunilgentyala.github.io/academicguard/) · [Changelog](#changelog) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -84,6 +85,40 @@ and module.
 - [HOWTO.md](HOWTO.md) -- complete CLI reference, Python API, per-venue rule tables, and troubleshooting
 - [Project site](https://sunilgentyala.github.io/academicguard/) -- feature tour
 - [CONTRIBUTING.md](CONTRIBUTING.md) -- how to add a venue checker or detection signal
+
+## Changelog
+
+Full release notes: [GitHub Releases](https://github.com/sunilgentyala/academicguard/releases).
+
+### [v1.0.1](https://github.com/sunilgentyala/academicguard/releases/tag/v1.0.1) -- 2026-08-09
+
+Bug-fix release; no breaking API changes.
+
+- **Fixed:** plain-text abstract/keyword parsing for the common inline
+  `Abstract-- text...` convention, which previously fell through to the
+  title heuristic and left the abstract and keywords empty.
+- **Fixed:** `TFIDFSimilarityChecker` scoring short-but-identical sentences
+  as 0% similar.
+- **Fixed:** `api.analyze_text()` silently reading a file from disk when the
+  input text happened to match a real filename (e.g. `"LICENSE"`).
+- **Fixed:** IET/BCS British-spelling checker flagging correctly-spelled
+  British text (`"behaviour"`) and the noun `"practice"` as errors.
+- **Fixed:** the main `analyze` pipeline now runs grammar checking in the
+  right English variant (en-GB) for IET/BCS instead of always en-US.
+- **Fixed:** HTML report footer no longer hardcodes the version string.
+- **Removed:** four unused dependencies (`pydantic`, `numpy`, `pylatexenc`,
+  `click`) and two phantom optional extras with no corresponding code.
+- **Docs:** corrected `HOWTO.md` sections that described Turnitin/
+  iThenticate, Copyscape, ZeroGPT, and GPTZero integrations and API-key
+  environment variables that don't exist in the code; added the
+  previously-missing `CONTRIBUTING.md`; new project site at
+  [sunilgentyala.github.io/academicguard](https://sunilgentyala.github.io/academicguard/).
+
+### [v1.0.0](https://github.com/sunilgentyala/academicguard/releases/tag/v1.0.0) -- 2026-05-06
+
+Initial release -- AI content detection, local + CrossRef plagiarism
+checking, grammar/register checking, and IEEE/Elsevier/ACM/IET/BCS venue
+style checkers, with a CLI and Python API.
 
 ## License
 
