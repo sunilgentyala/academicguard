@@ -120,6 +120,24 @@ Initial release -- AI content detection, local + CrossRef plagiarism
 checking, grammar/register checking, and IEEE/Elsevier/ACM/IET/BCS venue
 style checkers, with a CLI and Python API.
 
+## How to Cite
+
+If you use AcademicGuard in your research, please cite the software:
+
+```bibtex
+@software{gentyala2026academicguard,
+  author    = {Gentyala, Sunil},
+  title     = {AcademicGuard},
+  year      = {2026},
+  version   = {1.0.1},
+  url       = {https://github.com/sunilgentyala/academicguard}
+}
+```
+
+Machine-readable metadata is in [`CITATION.cff`](CITATION.cff); GitHub shows it under "Cite this repository".
+
+---
+
 ## License
 
 MIT -- see [LICENSE](LICENSE).

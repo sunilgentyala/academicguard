@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: If you use this software in your research, please cite it as below.
+type: software
+title: AcademicGuard
+version: 1.0.1
+date-released: '2026-08-09'
+authors:
+- family-names: Gentyala
+  given-names: Sunil
+  affiliation: HCLTech (HCL America Inc.), Dallas, TX, USA
+  orcid: https://orcid.org/0009-0005-2642-3479
+  email: sunil.gentyala@ieee.org
+repository-code: https://github.com/sunilgentyala/academicguard
+url: https://sunilgentyala.github.io/academicguard/
+license: MIT
+abstract: 'Open-source academic writing integrity toolkit: AI detection, plagiarism, grammar,
+  IEEE/Elsevier/ACM/IET/BCS style checking'
+keywords:
+- academic-writing
+- acm
+- ai-detection
+- cli
+- elsevier
+- grammar-checker
+- ieee
+- nlp
+- offline-first
+- plagiarism-detection
